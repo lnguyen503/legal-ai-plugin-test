@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Legal AI Plugin Test — Standard vs Debate</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body>
+<div class="app-wrap">
+
+  <!-- Header -->
+  <header>
+    <h1>⚖️ Legal AI Plugin Test</h1>
+    <p>Compares single-pass Standard Analysis vs multi-round Doer/Reviewer Debate across 5 legal workflows</p>
+  </header>
+
+  <!-- API Keys -->
+  <div class="card" id="keys-card">
+    <div class="card-header" onclick="toggleCard('keys-card')">
+      <h2>🔑 API Keys</h2>
+      <span class="toggle">▼</span>
+    </div>
+    <div class="card-body" id="keys-body">
+      <div class="keys-row">
+        <div class="form-group">
+          <label>Anthropic API Key</label>
+          <input type="password" id="anthropic-key" placeholder="sk-ant-…">
+        </div>
+        <div class="form-group">
+          <label>Google API Key (optional)</label>
+          <input type="password" id="google-key" placeholder="AIza…">
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;">
+          <button class="btn btn-primary" onclick="setAPIKeys()">Set Keys</button>
+          <button class="btn btn-secondary btn-sm" onclick="checkKeys()">Check</button>
+        </div>
+      </div>
+      <div class="key-status" id="key-status"></div>
+    </div>
+  </div>
+
+  <!-- Setup: Plugin + Document -->
+  <div class="card" id="setup-card">
+    <div class="card-header" onclick="toggleCard('setup-card')">
+      <h2>📂 Plugin & Document</h2>
+      <span class="toggle">▼</span>
+    </div>
+    <div class="card-body" id="setup-body">
+      <div class="setup-grid">
+
+        <!-- Left column: plugin + context -->
+        <div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>Legal Plugin</label>
+            <select id="plugin-select">
+              <option value="">— Loading plugins… —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Context Notes <span style="font-weight:400;text-transform:none;">(e.g. "I am on the buyer side")</span></label>
+            <textarea id="context-notes" rows="3" placeholder="Optional: add context for the AI — which side you represent, special instructions, etc."></textarea>
+          </div>
+        </div>
+
+        <!-- Right column: document upload -->
+        <div>
+          <div class="form-group" style="margin-bottom:8px;">
+            <label>Legal Document</label>
+            <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+              <span class="upload-icon">📄</span>
+              Click to upload PDF, DOCX, or TXT<br>
+              <small>or drag &amp; drop</small>
+              <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt,.md" onchange="handleFileUpload(this)">
+            </div>
+            <div class="doc-info" id="doc-info"></div>
+          </div>
+          <div class="form-group">
+            <label>Or paste document text</label>
+            <textarea id="paste-text" rows="4" placeholder="Paste contract / NDA text here…" oninput="handlePasteText()"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Run buttons live here so the workflow is obvious -->
+      <div class="run-row">
+        <button class="btn btn-success btn-lg" onclick="runAll()" id="run-all-btn">▶ Run All (Standard + Debate)</button>
+        <button class="btn btn-outline" onclick="runStandardOnly()" id="run-std-btn">Standard Only</button>
+        <button class="btn btn-outline" onclick="runDebateOnly()" id="run-debate-btn">Debate Only</button>
+        <button class="btn btn-secondary" onclick="clearAll()">🗑 Clear</button>
+        <button class="btn btn-secondary" id="export-btn" onclick="exportReport()" style="display:none;">⬇ Export</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Model Configuration -->
+  <div class="card" id="models-card">
+    <div class="card-header" onclick="toggleCard('models-card')">
+      <h2>🤖 Model Configuration</h2>
+      <span class="toggle">▼</span>
+    </div>
+    <div class="card-body" id="models-body">
+      <div class="model-grid">
+        <div class="form-group">
+          <label>Standard Analysis Model</label>
+          <select id="standard-model">
+            {% for model_id, model_name in models.items() %}
+            <option value="{{ model_id }}">{{ model_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Doer Model</label>
+          <select id="doer-model">
+            {% for model_id, model_name in models.items() %}
+            <option value="{{ model_id }}">{{ model_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Reviewer Model</label>
+          <select id="reviewer-model">
+            {% for model_id, model_name in models.items() %}
+            <option value="{{ model_id }}">{{ model_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Final Reviewer Model</label>
+          <select id="final-model">
+            {% for model_id, model_name in models.items() %}
+            <option value="{{ model_id }}">{{ model_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="rounds-row">
+        <div class="form-group">
+          <label>Max Debate Rounds (2–5)</label>
+          <input type="number" id="max-rounds" value="3" min="2" max="5">
+        </div>
+        <div class="form-group">
+          <label>Exchanges per Round (3–5)</label>
+          <input type="number" id="exchanges-per-round" value="3" min="3" max="5">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Split Screen: Standard | Debate -->
+  <div class="split-row">
+
+    <!-- Left: Standard Analysis -->
+    <div class="panel panel-standard">
+      <div class="panel-head">
+        <div>
+          <div>📋 Standard Analysis</div>
+          <div class="panel-meta" id="std-meta">Single-pass — AI runs the plugin once</div>
+        </div>
+        <div class="token-pill" id="std-tokens" style="display:none;"></div>
+      </div>
+      <div class="panel-scroll" id="std-scroll">
+        <div class="status status-idle" id="std-status">Ready — click Run to begin</div>
+        <div id="std-output" class="md-content"></div>
+      </div>
+    </div>
+
+    <!-- Right: Doer/Reviewer Debate -->
+    <div class="panel panel-debate">
+      <div class="panel-head">
+        <div>
+          <div>⚔️ Doer / Reviewer Debate</div>
+          <div class="panel-meta" id="debate-meta">Multi-round — Doer analyzes, Reviewer challenges</div>
+        </div>
+        <div class="token-pill" id="debate-tokens" style="display:none;"></div>
+      </div>
+      <div class="panel-scroll" id="debate-scroll">
+        <div class="status status-idle" id="debate-status">Ready — click Run to begin</div>
+        <div id="debate-output"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Final Review Panel -->
+  <div class="panel final-panel card" id="final-panel" style="display:none;">
+    <div class="panel-head">
+      <div>
+        <div>🎯 Final Review — Standard vs Debate</div>
+        <div class="panel-meta" id="final-meta">Independent judge compares both analyses</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="token-pill" id="final-tokens" style="display:none;"></div>
+        <button class="btn btn-secondary btn-sm" onclick="runFinalReview()" id="run-final-btn">Run Final Review</button>
+      </div>
+    </div>
+    <div class="panel-scroll" style="min-height:250px;" id="final-scroll">
+      <div class="status status-idle" id="final-status">Both panels must complete before running Final Review</div>
+      <div id="final-output" class="md-content"></div>
+    </div>
+  </div>
+
+</div><!-- .app-wrap -->
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

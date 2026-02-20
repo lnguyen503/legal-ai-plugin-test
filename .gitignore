@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.env
+.venv/
+venv/
+env/
+
+# Uploads (keep folder, ignore contents)
+uploads/*
+!uploads/.gitkeep
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude Code IDE settings (local permissions, not for sharing)
+.claude/
+
+# Secrets / keys (never commit these)
+secrets.json
+*.key
+*.pem
+
+# Test documents (local only — add your own)
+test-docs/
