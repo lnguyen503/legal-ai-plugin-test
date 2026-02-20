@@ -2,7 +2,7 @@
 
 A Flask web app that benchmarks legal AI plugins by running them two ways simultaneously and letting an independent judge declare a winner.
 
-![Split-screen UI showing Standard Analysis vs Doer/Reviewer Debate panels](https://placehold.co/900x400?text=Legal+AI+Plugin+Tester+UI)
+![Legal AI Plugin Tester UI](screenshot.png)
 
 ---
 
